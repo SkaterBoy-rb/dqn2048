@@ -17,12 +17,13 @@ MAX_SCORE_FILEPATH = 'score'
 FONTPATH = os.path.join(os.getcwd(), 'resources/font/Gabriola.ttf')
 '''背景音乐路径'''
 BGMPATH = os.path.join(os.getcwd(), 'resources/audio/bgm.mp3')
-MODELPATH = "checkpoint/avg2891-max1024.pkl"
+MODELPATH = "./score_max.pkl"
 '''其他一些必要的常量'''
 MARGIN_SIZE = 10
 BLOCK_SIZE = 80
 GAME_MATRIX_SIZE = (4, 4)
-NETWORK = Network().cuda()
+str_device = 'cpu'
+NETWORK = Network().to(str_device)
 NETWORK.load_state_dict(torch.load(MODELPATH))
 
 '''根据方格当前的分数获得[方格背景颜色, 方格里的字体颜色]'''
@@ -147,7 +148,7 @@ def transform_state(state):
 		return np.concatenate([transform_one(s) for s in state],axis=0)
 
 def predict(state):
-	state_torch = torch.from_numpy(transform_state(state)).to("cuda")
+	state_torch = torch.from_numpy(transform_state(state)).to(str_device)
 	result = NETWORK.forward(state_torch)
 	actionScore = result.cpu().detach().numpy()[0]
 	legals = Game2048.legal_moves(state)
@@ -179,20 +180,27 @@ def main():
 			if event.type == pygame.QUIT:
 				pygame.quit()
 				sys.exit()
-			elif event.type == pygame.KEYDOWN:
-				if event.key in [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]:
-					ismove,movescore,state = game.move(game.matrix,{pygame.K_UP: 'w', pygame.K_DOWN: 's', pygame.K_LEFT: 'a', pygame.K_RIGHT: 'd'}[event.key])
-					game.score += movescore
-					if ismove:
-						game.generate()
-			elif event.type == pygame.MOUSEBUTTONDOWN:
-				if is_rect(event.pos,AI_rect):
-					action = predict(game.matrix.copy())
-					ismove,movescore,nextstate = game.move(game.matrix,action)
-					game.matrix = nextstate
-					game.score += movescore
-					if ismove:
-						game.generate()
+			# elif event.type == pygame.KEYDOWN:
+			# 	if event.key in [pygame.K_UP, pygame.K_DOWN, pygame.K_LEFT, pygame.K_RIGHT]:
+			# 		ismove,movescore,state = game.move(game.matrix,{pygame.K_UP: 'w', pygame.K_DOWN: 's', pygame.K_LEFT: 'a', pygame.K_RIGHT: 'd'}[event.key])
+			# 		game.score += movescore
+			# 		if ismove:
+			# 			game.generate()
+			# elif event.type == pygame.MOUSEBUTTONDOWN:
+			# 	if is_rect(event.pos,AI_rect):
+			# 		action = predict(game.matrix.copy())
+			# 		ismove,movescore,nextstate = game.move(game.matrix,action)
+			# 		game.matrix = nextstate
+			# 		game.score += movescore
+			# 		if ismove:
+			# 			game.generate()
+		action = predict(game.matrix.copy())
+		ismove, movescore, nextstate = game.move(game.matrix, action)
+		game.matrix = nextstate
+		game.score += movescore
+		if ismove:
+			game.generate()
+
 		with open("score", 'r', encoding='utf-8') as f:
 			max_score = f.read()
 		# --更新游戏状态
